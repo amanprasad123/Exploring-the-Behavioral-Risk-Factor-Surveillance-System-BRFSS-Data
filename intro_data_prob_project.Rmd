@@ -1,0 +1,147 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+### Generalizability
+
+The Behavioral Risk Factor Surveillance System (BRFSS) conducts both landline telephone- and cellular telephone-based surveys.
+
+Since, it is not possible to collect data from each and every resident of United States, we distribute the population in strata. Here, interviewers collect data randomly from these strata, therefore random stratified sampling has been employed. This kind of sampling provides a good estimate of the population, hence we can generalize this data to the entire population of United States.
+
+### Causability
+
+It can be seen that, no primary explanatory variable is assigned for any of the subject, whereas all the data is collected only by monitoring what occurs. Thus, the study is observational and not random experiment. No casual  conclusions can be made from observational data because observational studies are generally only sufficient to show associations. Hence, only correlation between variables can be established. It is impossible to establish causality through this survey.
+
+* * *
+
+## Part 2: Research questions
+
+**Research question 1:** To check if there exists any correlation between the general health and physical activity for the general US Population in the data. These variables are taken to visualize if higher physical activity improves the general health of a person or not.
+
+**Research question 2:** To check if there exists any correlation between the general health and average alcohol drinks per day for the general US Population in the data. These variables are taken to see if taking alcohol daily affects the general health of a person or not.
+
+**Research question 3:** To check if there exists any correlation between income level and mental depression a person has. To see if, with a higher salary, a person suffers from depression or not. 
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button (green button with orange arrow) above. Make sure that your code is visible
+in the project you submit. Delete this note when before you submit your work.
+
+**Research question 1:** Correlation between general health and physical activity
+
+```{r}
+q1 <- brfss2013 %>% select(sex  , exerany2, genhlth) %>%
+  filter(!is.na(sex), !is.na(exerany2),!is.na(genhlth)) %>% 
+  group_by(sex,exerany2,genhlth) %>% 
+  summarise(count=n()) %>% 
+  mutate(perc=count/sum(count))
+
+ggplot(q1, aes(x = factor(exerany2), y = perc*100, fill = factor(genhlth))) +
+  geom_bar(stat="identity", width = 0.7) +
+  labs(x = "Physical Activity", y = "Percentage", fill = "General Health") +
+  theme_minimal(base_size = 10) +
+  facet_grid(. ~  sex)
+```
+
+There appears to be a relationship between general health and physical activity across both male and female participants. Of the respondents who responded "YES" to engage in physical activity there is a greater percentage that consider their general health to be good or very good or excellent.
+
+
+
+
+**Research question 2:** Correlation between general health and average alcohol drinks per day
+
+```{r}
+q2 <- brfss2013 %>% select(sex, avedrnk2,genhlth) %>%
+  filter(!is.na(sex), !is.na(avedrnk2),!is.na(genhlth))
+
+ggplot(q2, aes(x=sex, y=avedrnk2)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=1,outlier.size=4) +
+  labs(x = "Sex", y = "Avg alcohol drinks per day in past 30 days")
+
+```
+
+
+Examining the summary data in a boxplot shows there are many outliers in the average alcohol drinks taken per day in the past 30 days. For this analysis, outliers are removed, and the average alcohol drinks taken per day in the past 30 days is set at <= 12
+
+
+```{r}
+q2_m <- brfss2013 %>% select(sex, avedrnk2,genhlth) %>%
+  filter(!is.na(sex), !is.na(avedrnk2),!is.na(genhlth), avedrnk2 <= 12)
+
+ggplot(q2_m, aes(x=sex, y=avedrnk2)) + 
+  geom_boxplot(outlier.colour="red", outlier.shape=1,outlier.size=4) +
+  labs(x = "Sex", y = "Avg alcohol drinks per day in past 30 days")
+
+```
+
+
+We plot mean of average alcohol drinks per day for each general health category.
+
+
+```{r}
+q2_htlh <- q2_m %>% group_by(sex,genhlth) %>% summarise(mn_drink = mean(avedrnk2))
+
+ggplot(q2_htlh, aes(genhlth, mn_drink)) +
+  geom_point(aes(genhlth, mn_drink)) +
+  labs(title="mean of average alcohol drinks per day for each general health category",
+       x="general health rating", y="mean of average alcohol drinks per day")+
+  facet_grid(. ~  sex)
+
+```
+
+
+On observing the plot above, there appears to be a relationship between general health and average alcohol drinks per day across both male and female participants. Participants who reported being in excellent general health drank lesser average alcohol drinks per day on average. They may feel generally healthy because they are drinking under the limit every day.
+
+
+
+**Research question 3:** correlation between income level and mental depression
+
+```{r}
+q3 <- brfss2013 %>% select(sex, misdeprd, income2) %>%
+  filter(!is.na(misdeprd), !is.na(income2), !is.na(sex)) %>%
+  group_by(sex,income2) %>% summarise(amount_depr = sum(misdeprd != "None") / n())
+
+levels(q3$income2) <- gsub(" ", "\n", levels(q3$income2))
+ggplot(q3, aes(income2, amount_depr)) +
+  geom_point(aes(income2, amount_depr)) +
+  labs(title="Proportion of participants who suffered from mental depression vs. income",
+       x="Level of Income", y="Suffering from depression")+
+  theme(text = element_text(size=7.5))+
+facet_grid(. ~  sex)
+
+```
+
+The conclusion from this analysis that for higher levels of income the proportion of participants who are suffering from mental depression are lower. Interestingly the proportion of female participants who suffer from mental depression is higher than male participants for incomes of less than $15,000.
+
+The lower proportion of mental depression for incomes above $15,000 could be because of a number of reasons such has availability of time to sleep, general health or availabilty of free time.
